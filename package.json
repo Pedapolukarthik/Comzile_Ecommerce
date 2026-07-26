@@ -10,9 +10,9 @@
   ],
   "scripts": {
     "dev:backend": "npm run dev --workspace=backend",
-    "dev:admin": "npm run dev --workspace=apps/admin-panel",
-    "dev:seller": "npm run dev --workspace=apps/seller-panel",
-    "dev:customer": "npm run dev --workspace=apps/customer-panel",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:seller": "npm run dev --workspace=apps/seller",
+    "dev:customer": "npm run dev --workspace=apps/customer",
     "prisma:generate": "npm run prisma:generate --workspace=backend",
     "prisma:migrate": "npm run prisma:migrate --workspace=backend"
   },
