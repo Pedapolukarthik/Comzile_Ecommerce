@@ -1,0 +1,31 @@
+{
+  "name": "comzile-ecommerce-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise Multi-Tenant SaaS eCommerce Platform Foundation",
+  "workspaces": [
+    "backend",
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:admin": "npm run dev --workspace=apps/admin-panel",
+    "dev:seller": "npm run dev --workspace=apps/seller-panel",
+    "dev:customer": "npm run dev --workspace=apps/customer-panel",
+    "prisma:generate": "npm run prisma:generate --workspace=backend",
+    "prisma:migrate": "npm run prisma:migrate --workspace=backend"
+  },
+  "keywords": [
+    "saas",
+    "multi-tenant",
+    "ecommerce",
+    "react",
+    "nodejs",
+    "express",
+    "prisma",
+    "mysql"
+  ],
+  "author": "",
+  "license": "ISC"
+}

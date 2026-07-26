@@ -1,0 +1,173 @@
+// Prisma Schema for Multi-Tenant SaaS eCommerce Platform
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RoleName {
+  SUPER_ADMIN
+  SELLER
+  CUSTOMER
+  STAFF
+}
+
+enum StoreStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+model Store {
+  id              String      @id @default(uuid())
+  name            String
+  slug            String      @unique
+  domain          String?     @unique
+  subdomain       String?     @unique @map("subdomain")
+  customDomain    String?     @unique @map("custom_domain")
+  storeUrl        String?     @map("store_url")
+  status          StoreStatus @default(PENDING)
+  ownerName       String?     @map("owner_name")
+  mobileNumber    String?     @map("mobile_number")
+  gstNumber       String?     @map("gst_number")
+  panNumber       String?     @map("pan_number")
+  address         String?     @db.Text
+  rejectionReason String?     @db.Text @map("rejection_reason")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  storeUsers StoreUser[]
+  userRoles  UserRole[]
+  auditLogs  AuditLog[]
+  settings   StoreSettings?
+
+  @@map("stores")
+}
+
+model User {
+  id                       String        @id @default(uuid())
+  email                    String        @unique
+  passwordHash             String        @map("password_hash")
+  firstName                String?       @map("first_name")
+  lastName                 String?       @map("last_name")
+  mobileNumber             String?       @map("mobile_number")
+  isActive                 Boolean       @default(true) @map("is_active")
+  emailVerified            Boolean       @default(false) @map("email_verified")
+  emailVerificationToken   String?       @map("email_verification_token")
+  emailVerificationExpires DateTime?     @map("email_verification_expires")
+  failedLoginAttempts      Int           @default(0) @map("failed_login_attempts")
+  lockUntil                DateTime?     @map("lock_until")
+  passwordResetToken       String?       @map("password_reset_token")
+  passwordResetExpires     DateTime?     @map("password_reset_expires")
+  createdAt                DateTime      @default(now()) @map("created_at")
+  updatedAt                DateTime      @updatedAt @map("updated_at")
+
+  storeUsers    StoreUser[]
+  userRoles     UserRole[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model StoreSettings {
+  id        String   @id @default(uuid())
+  storeId   String   @unique @map("store_id")
+  currency  String   @default("INR")
+  language  String   @default("en")
+  timezone  String   @default("Asia/Kolkata")
+  logo      String?
+  favicon   String?
+  theme     String   @default("default")
+  email     String?
+  phone     String?
+  address   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_settings")
+}
+
+model StoreUser {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, userId])
+  @@index([storeId])
+  @@index([userId])
+  @@map("store_users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        RoleName @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  roleId    String   @map("role_id")
+  storeId   String?  @map("store_id") // Null for SUPER_ADMIN, present for SELLER/CUSTOMER/STAFF
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role  Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  store Store? @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, storeId])
+  @@index([storeId])
+  @@index([userId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  family    String
+  expiresAt DateTime @map("expires_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  storeId   String?  @map("store_id")
+  action    String
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  store Store? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([storeId])
+  @@map("audit_logs")
+}
