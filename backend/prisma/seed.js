@@ -129,6 +129,115 @@ async function main() {
   } else {
     console.log('Demo Customer already exists.');
   }
+
+  // 5. Seed Demo Categories and Products for Demo Store
+  const catElectronics = await prisma.category.upsert({
+    where: { storeId_slug: { storeId: demoStore.id, slug: 'electronics' } },
+    update: {},
+    create: {
+      storeId: demoStore.id,
+      name: 'Electronics',
+      slug: 'electronics',
+      description: 'Gadgets, audio & smart accessories',
+      status: 'ACTIVE',
+      sortOrder: 1,
+    },
+  });
+
+  const catApparel = await prisma.category.upsert({
+    where: { storeId_slug: { storeId: demoStore.id, slug: 'apparel' } },
+    update: {},
+    create: {
+      storeId: demoStore.id,
+      name: 'Apparel & Fashion',
+      slug: 'apparel',
+      description: 'Modern clothing and accessories',
+      status: 'ACTIVE',
+      sortOrder: 2,
+    },
+  });
+
+  // Seed Product 1
+  const prod1Sku = 'PROD-HEADPHONES-001';
+  const existingProd1 = await prisma.product.findFirst({
+    where: { storeId: demoStore.id, sku: prod1Sku },
+  });
+
+  if (!existingProd1) {
+    const prod1 = await prisma.product.create({
+      data: {
+        storeId: demoStore.id,
+        categoryId: catElectronics.id,
+        name: 'Noise-Cancelling Wireless Headphones',
+        slug: 'noise-cancelling-wireless-headphones',
+        sku: prod1Sku,
+        shortDescription: 'High-fidelity audio with active noise cancellation and 30-hour battery life.',
+        description: 'Immerse yourself in crystal-clear audio quality with ultra-soft memory foam ear cushions, dual Bluetooth pairing, and rapid USB-C fast charging.',
+        brand: 'SoundPulse',
+        regularPrice: 4999.00,
+        salePrice: 3499.00,
+        stockQuantity: 45,
+        lowStockThreshold: 5,
+        status: 'ACTIVE',
+        featured: true,
+      },
+    });
+
+    await prisma.productImage.createMany({
+      data: [
+        {
+          productId: prod1.id,
+          imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80',
+          isPrimary: true,
+          sortOrder: 0,
+        },
+        {
+          productId: prod1.id,
+          imageUrl: 'https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800&q=80',
+          isPrimary: false,
+          sortOrder: 1,
+        },
+      ],
+    });
+  }
+
+  // Seed Product 2
+  const prod2Sku = 'PROD-SMARTWATCH-002';
+  const existingProd2 = await prisma.product.findFirst({
+    where: { storeId: demoStore.id, sku: prod2Sku },
+  });
+
+  if (!existingProd2) {
+    const prod2 = await prisma.product.create({
+      data: {
+        storeId: demoStore.id,
+        categoryId: catElectronics.id,
+        name: 'Amoled Fitness Smartwatch V2',
+        slug: 'amoled-fitness-smartwatch-v2',
+        sku: prod2Sku,
+        shortDescription: 'Sleek fitness tracker with AMOLED display, heart rate monitor, and GPS.',
+        description: 'Track your workouts, sleep quality, blood oxygen levels, and step counts with precision. Features IP68 water resistance.',
+        brand: 'TechGear',
+        regularPrice: 2999.00,
+        salePrice: 2499.00,
+        stockQuantity: 20,
+        lowStockThreshold: 5,
+        status: 'ACTIVE',
+        featured: true,
+      },
+    });
+
+    await prisma.productImage.create({
+      data: {
+        productId: prod2.id,
+        imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
+        isPrimary: true,
+        sortOrder: 0,
+      },
+    });
+  }
+
+  console.log('Demo Categories & Products seeded successfully.');
 }
 
 main()

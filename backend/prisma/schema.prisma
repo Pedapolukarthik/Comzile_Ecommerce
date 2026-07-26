@@ -46,6 +46,8 @@ model Store {
   userRoles  UserRole[]
   auditLogs  AuditLog[]
   settings   StoreSettings?
+  categories Category[]
+  products   Product[]
 
   @@map("stores")
 }
@@ -171,3 +173,82 @@ model AuditLog {
   @@index([storeId])
   @@map("audit_logs")
 }
+
+enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  OUT_OF_STOCK
+}
+
+model Category {
+  id          String         @id @default(uuid())
+  storeId     String         @map("store_id")
+  name        String
+  slug        String
+  description String?        @db.Text
+  image       String?        @db.Text
+  status      CategoryStatus @default(ACTIVE)
+  sortOrder   Int            @default(0) @map("sort_order")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([storeId, slug])
+  @@index([storeId])
+  @@map("categories")
+}
+
+model Product {
+  id                String        @id @default(uuid())
+  storeId           String        @map("store_id")
+  categoryId        String?       @map("category_id")
+  name              String
+  slug              String
+  sku               String
+  shortDescription  String?       @db.Text @map("short_description")
+  description       String?       @db.Text
+  brand             String?
+  regularPrice      Decimal       @map("regular_price") @db.Decimal(10, 2)
+  salePrice         Decimal?      @map("sale_price") @db.Decimal(10, 2)
+  stockQuantity     Int           @default(0) @map("stock_quantity")
+  lowStockThreshold Int           @default(5) @map("low_stock_threshold")
+  weight            Float?
+  dimensions        String?
+  status            ProductStatus @default(ACTIVE)
+  featured          Boolean       @default(false)
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  images   ProductImage[]
+
+  @@unique([storeId, sku])
+  @@unique([storeId, slug])
+  @@index([storeId])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String   @map("product_id")
+  imageUrl  String   @db.Text @map("image_url")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+

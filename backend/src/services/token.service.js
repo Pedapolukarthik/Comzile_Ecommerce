@@ -22,6 +22,14 @@ class TokenService {
   }
 
   /**
+   * Verify Access Token
+   */
+  verifyToken(token) {
+    return jwt.verify(token, env.JWT_SECRET);
+  }
+
+
+  /**
    * Issue Access Token and Refresh Token with rotation family
    */
   async generateTokenPair(user, role, storeId = null, family = null) {

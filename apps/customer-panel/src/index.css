@@ -1,9 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  --bg-main: #fafafa;
-  --bg-card: #ffffff;
+  --bg-main: #020617;
+  --bg-card: #0f172a;
   --primary: #059669;
-  --text-main: #18181b;
-  --text-muted: #71717a;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
 }
 
 * {
@@ -17,37 +21,4 @@ body {
   background-color: var(--bg-main);
   color: var(--text-main);
   min-height: 100vh;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 20px;
-}
-
-.hero {
-  background: linear-gradient(135deg, #059669, #10b981);
-  color: white;
-  padding: 40px;
-  border-radius: 16px;
-  margin-bottom: 24px;
-  box-shadow: 0 10px 30px -10px rgba(5, 150, 105, 0.4);
-}
-
-.card {
-  background-color: var(--bg-card);
-  border: 1px solid #e4e4e7;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.badge-customer {
-  background: #059669;
-  color: white;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
 }

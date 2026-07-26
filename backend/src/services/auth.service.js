@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const prisma = require('../config/prisma');
+const envConfig = require('../config/env.config');
+const logger = require('../utils/logger');
 const userRepository = require('../repositories/user.repository');
 const storeRepository = require('../repositories/store.repository');
 const roleRepository = require('../repositories/role.repository');
@@ -11,6 +13,13 @@ const AppError = require('../utils/appError');
 const { ROLES } = require('../constants/roles');
 
 class AuthService {
+  /**
+   * Verify token helper method
+   */
+  verifyToken(token) {
+    return tokenService.verifyToken(token);
+  }
+
   /**
    * Helper to fetch or initialize Role by name
    */
@@ -27,10 +36,31 @@ class AuthService {
   /**
    * Check if account is temporarily locked due to failed attempts
    */
-  checkAccountLock(user) {
-    if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
-      const remainingMins = Math.ceil((new Date(user.lockUntil) - new Date()) / (60 * 1000));
-      throw new AppError(`Account is temporarily locked due to consecutive failed login attempts. Try again in ${remainingMins} minute(s).`, 429);
+  async checkAccountLock(user) {
+    if (!user) return;
+
+    // Check if account locking feature is disabled in env
+    if (!envConfig.AUTH_ENABLE_ACCOUNT_LOCK) {
+      if (user.failedLoginAttempts > 0 || user.lockUntil !== null) {
+        logger.info(`[AUTH] Account locking disabled (ENV). Auto-clearing legacy lock state for ${user.email}`);
+        await this.resetFailedLogins(user);
+      }
+      return;
+    }
+
+    if (user.lockUntil) {
+      const lockUntilDate = new Date(user.lockUntil);
+      const now = new Date();
+
+      if (lockUntilDate > now) {
+        const remainingMins = Math.ceil((lockUntilDate.getTime() - now.getTime()) / (60 * 1000));
+        logger.warn(`[AUTH_LOCK] Login attempt blocked for locked account: ${user.email}. Lock expires in ${remainingMins} min(s) (at ${user.lockUntil}).`);
+        throw new AppError(`Account is temporarily locked due to consecutive failed login attempts. Try again in ${remainingMins} minute(s).`, 429);
+      } else {
+        // Lock duration has EXPIRED! Automatically unlock account in DB immediately
+        logger.info(`[AUTH_UNLOCK] Lock duration expired for account ${user.email}. Automatically clearing lock state and failed attempt counter.`);
+        await this.resetFailedLogins(user);
+      }
     }
   }
 
@@ -39,17 +69,30 @@ class AuthService {
    */
   async handleFailedLogin(user, reqInfo = {}, metadata = {}) {
     if (!user) return;
+
+    if (!envConfig.AUTH_ENABLE_ACCOUNT_LOCK) {
+      logger.info(`[AUTH] Account locking disabled. Password mismatch for ${user.email}, failed attempt counter skipped.`);
+      return;
+    }
+
+    const maxAttempts = envConfig.AUTH_MAX_FAILED_ATTEMPTS || 5;
+    const lockoutMins = envConfig.AUTH_LOCKOUT_DURATION_MINS || 15;
+
     const attempts = (user.failedLoginAttempts || 0) + 1;
     let lockUntil = null;
-    if (attempts >= 5) {
-      lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minute lock
+
+    if (attempts >= maxAttempts) {
+      lockUntil = new Date(Date.now() + lockoutMins * 60 * 1000);
+      logger.warn(`[AUTH_LOCK] Account ${user.email} LOCKED until ${lockUntil.toISOString()} after ${attempts}/${maxAttempts} failed login attempts.`);
       await auditService.log({
         userId: user.id,
         action: 'ACCOUNT_LOCKED',
         ipAddress: reqInfo.ip,
         userAgent: reqInfo.userAgent,
-        metadata: { attempts, lockUntil },
+        metadata: { attempts, lockUntil, ...metadata },
       });
+    } else {
+      logger.warn(`[AUTH_FAILURE] Password mismatch for ${user.email}. Failed attempts: ${attempts}/${maxAttempts}`);
     }
 
     await prisma.user.update({
@@ -59,13 +102,18 @@ class AuthService {
         lockUntil,
       },
     });
+
+    user.failedLoginAttempts = attempts;
+    user.lockUntil = lockUntil;
   }
 
   /**
    * Reset failed login counter on successful authentication
    */
   async resetFailedLogins(user) {
-    if (user.failedLoginAttempts > 0 || user.lockUntil) {
+    if (!user) return;
+    if (user.failedLoginAttempts > 0 || user.lockUntil !== null) {
+      logger.info(`[AUTH_SUCCESS] Clearing failed login attempts (was ${user.failedLoginAttempts}) and lock state for ${user.email}`);
       await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -73,6 +121,8 @@ class AuthService {
           lockUntil: null,
         },
       });
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
     }
   }
 
@@ -92,7 +142,7 @@ class AuthService {
       throw new AppError('Invalid email or password', 401);
     }
 
-    this.checkAccountLock(user);
+    await this.checkAccountLock(user);
 
     const hasAdminRole = user.userRoles.some((ur) => ur.role.name === ROLES.SUPER_ADMIN);
     if (!hasAdminRole) {
@@ -289,7 +339,7 @@ class AuthService {
       throw new AppError('Invalid email or password', 401);
     }
 
-    this.checkAccountLock(user);
+    await this.checkAccountLock(user);
 
     const sellerRoleEntry = user.userRoles.find((ur) => ur.role.name === ROLES.SELLER);
     if (!sellerRoleEntry || !sellerRoleEntry.store) {
@@ -605,7 +655,7 @@ class AuthService {
       throw new AppError('Invalid email or password', 401);
     }
 
-    this.checkAccountLock(user);
+    await this.checkAccountLock(user);
 
     let resolvedStore = null;
     if (storeId) {
