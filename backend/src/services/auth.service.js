@@ -646,8 +646,8 @@ class AuthService {
 
     await this.resetFailedLogins(user);
 
-    const targetStoreId = customerRoleEntry.storeId;
-    const tokens = await tokenService.generateTokenPair(user, ROLES.CUSTOMER, targetStoreId);
+    const activeStoreId = customerRoleEntry.storeId;
+    const tokens = await tokenService.generateTokenPair(user, ROLES.CUSTOMER, activeStoreId);
 
     await auditService.log({
       userId: user.id,
