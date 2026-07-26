@@ -26,7 +26,12 @@ export const SellerLogin = () => {
         setError(res.message || 'Login failed');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please verify credentials or contact administrator.');
+      const serverError = err.response?.data?.message;
+      if (serverError) {
+        setError(serverError);
+      } else {
+        setError('Backend API server is offline or unreachable (http://localhost:5000). Please ensure backend is running with: npm run dev:backend');
+      }
     } finally {
       setLoading(false);
     }
