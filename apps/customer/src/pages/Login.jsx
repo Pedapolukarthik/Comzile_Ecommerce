@@ -6,9 +6,9 @@ import { ShoppingBag, Lock, Mail, Store, AlertCircle, Loader2 } from 'lucide-rea
 
 export const Login = () => {
   const { storeId, setStoreId, login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [targetStore, setTargetStore] = useState(storeId);
+  const [email, setEmail] = useState('customer@example.com');
+  const [password, setPassword] = useState('Pass@1234');
+  const [targetStore, setTargetStore] = useState(storeId || 'demo-store-id');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();

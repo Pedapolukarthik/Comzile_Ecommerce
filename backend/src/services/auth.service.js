@@ -505,8 +505,14 @@ class AuthService {
   // 5. CUSTOMER AUTHENTICATION
   // ==========================================
   async registerCustomer(data, reqInfo = {}) {
-    const store = await prisma.store.findUnique({
-      where: { id: data.storeId },
+    const store = await prisma.store.findFirst({
+      where: {
+        OR: [
+          { id: data.storeId },
+          { slug: data.storeId },
+          { subdomain: data.storeId },
+        ],
+      },
     });
 
     if (!store) {
@@ -517,9 +523,11 @@ class AuthService {
       throw new AppError('Cannot register under an inactive store.', 400);
     }
 
+    const targetStoreId = store.id;
+
     const existingUser = await userRepository.findByEmail(data.email);
     if (existingUser) {
-      const linkedStore = existingUser.userRoles.find((ur) => ur.storeId === data.storeId);
+      const linkedStore = existingUser.userRoles.find((ur) => ur.storeId === targetStoreId);
       if (linkedStore) {
         throw new AppError('Customer already registered with this email for this store', 400);
       }
@@ -545,7 +553,7 @@ class AuthService {
 
       await tx.storeUser.create({
         data: {
-          storeId: data.storeId,
+          storeId: targetStoreId,
           userId: createdOrFoundUser.id,
         },
       });
@@ -554,7 +562,7 @@ class AuthService {
         data: {
           userId: createdOrFoundUser.id,
           roleId: customerRole.id,
-          storeId: data.storeId,
+          storeId: targetStoreId,
         },
       });
 
@@ -599,8 +607,23 @@ class AuthService {
 
     this.checkAccountLock(user);
 
+    let resolvedStore = null;
+    if (storeId) {
+      resolvedStore = await prisma.store.findFirst({
+        where: {
+          OR: [
+            { id: storeId },
+            { slug: storeId },
+            { subdomain: storeId },
+          ],
+        },
+      });
+    }
+
+    const targetStoreId = resolvedStore ? resolvedStore.id : storeId;
+
     const customerRoleEntry = user.userRoles.find(
-      (ur) => ur.role.name === ROLES.CUSTOMER && (!storeId || ur.storeId === storeId)
+      (ur) => ur.role.name === ROLES.CUSTOMER && (!targetStoreId || ur.storeId === targetStoreId)
     );
 
     if (!customerRoleEntry) {
